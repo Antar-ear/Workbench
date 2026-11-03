@@ -27,7 +27,7 @@ export default function AreaPage({ params }: { params: { slug: string; area: str
 
   const score = areaScore(dc.slug, area.id);
   const cov = Math.round(evidenceCoverage(dc.slug, area.id) * 100);
-  const rows = criteriaFor(area.id).map((c) => ({ c, r: ratingFor(dc.slug, c.id)! }));
+  const rows = criteriaFor(area.id).map((c) => ({ c, r: ratingFor(dc.slug, c.id) }));
   const nodeLabel = (id: string) => dc.nodes.find((n) => n.id === id)?.label ?? id;
 
   return (
@@ -63,7 +63,7 @@ export default function AreaPage({ params }: { params: { slug: string; area: str
           </h1>
           <p className="text-sm leading-relaxed text-slate-600">{area.scope}</p>
           <p className="text-xs text-slate-500">
-            {area.sections}. Evidence behind this score: {cov}%.
+            Evidence behind this score: {cov}%.
           </p>
         </div>
       </header>
@@ -96,16 +96,52 @@ export default function AreaPage({ params }: { params: { slug: string; area: str
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Question this answers
                     </p>
-                    <p className="mt-1 text-slate-700">
-                      {c.asks} <span className="text-slate-400">({c.refs})</span>
-                    </p>
+                    <p className="mt-1 text-slate-700">{c.asks || "-"}</p>
                   </div>
+
+                  {c.subs.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Sub-categories ({c.subs.length})
+                      </p>
+                      <ul className="mt-2 space-y-2">
+                        {c.subs.map((s, i) => (
+                          <li key={`${c.id}-${i}`}>
+                            <details className="group/sub rounded-md border bg-slate-50">
+                              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
+                                <span className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-slate-400">
+                                    {c.id}.{i + 1}
+                                  </span>
+                                  <span className="font-medium text-slate-900">{s.label}</span>
+                                </span>
+                                <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open/sub:rotate-180" />
+                              </summary>
+                              <div className="space-y-3 border-t bg-white px-3 py-3">
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Question this answers
+                                  </p>
+                                  <p className="mt-1 text-slate-700">{s.asks || "-"}</p>
+                                </div>
+                                {!s.asks && (
+                                  <p className="text-xs text-slate-500">
+                                    Nothing entered yet for this sub-category.
+                                  </p>
+                                )}
+                              </div>
+                            </details>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Why this score
                     </p>
-                    <p className="mt-1 leading-relaxed text-slate-700">{r.why}</p>
+                    <p className="mt-1 leading-relaxed text-slate-700">{r.why || "-"}</p>
                     {r.basis === "not-received" && (
                       <p className="mt-2 rounded bg-rose-50 px-2 py-1 text-xs text-rose-800">
                         We hold nothing on this, so it carries the default of {UNVERIFIED_DEFAULT}.
@@ -118,7 +154,7 @@ export default function AreaPage({ params }: { params: { slug: string; area: str
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Needed to firm it up
                     </p>
-                    <p className="mt-1 leading-relaxed text-slate-700">{r.next}</p>
+                    <p className="mt-1 leading-relaxed text-slate-700">{r.next || "-"}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-x-8 gap-y-3">

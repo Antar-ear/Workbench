@@ -27,7 +27,7 @@ export default function DetailsMenu({ params }: { params: { slug: string } }) {
       href: `/dc/${dc.slug}/breakup`,
       icon: LayoutGrid,
       title: "Breakup",
-      text: `${dc.name} split into WMS, Infrastructure, Enterprise and Cybersecurity. Each has its own score and a scoring breakdown.`,
+      text: `${dc.name} split into ${AREAS.map((a) => a.name).join(", ")}. Each has its own score and a scoring breakdown.`,
       meta: `${AREAS.length} areas, ${CRITERIA.length} criteria`,
     },
   ];

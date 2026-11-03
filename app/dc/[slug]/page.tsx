@@ -12,6 +12,7 @@ import {
   evidenceCoverage,
   overallScore,
   topDrivers,
+  MAX_SCORE,
   UNVERIFIED_DEFAULT,
 } from "@/lib/scoring";
 
@@ -37,7 +38,7 @@ export default function DcScorePage({ params }: { params: { slug: string } }) {
 
       <header className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Risk score, 1 to 10 (10 is most risk)
+          Risk score, 1 to {MAX_SCORE} ({MAX_SCORE} is most risk)
         </p>
         <h1 className="text-3xl font-bold tracking-tight">{dc.name}</h1>
         <p className="text-muted-foreground">{dc.fullName}</p>

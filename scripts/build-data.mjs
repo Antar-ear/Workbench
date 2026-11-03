@@ -12,6 +12,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { EVIDENCE_LABELS, TAG_LABELS, LAYERS, GRID_X, GRID_Y, GRID_Y0 } from "./sheet-format.mjs";
 
+/** Top of the score scale: every score runs 1 to MAX_SCORE (MAX_SCORE = most risk). */
+const MAX_SCORE = 5;
+
 const SRC = "data/Workbench-Data.xlsx";
 const OUT = "lib/generated/workbench-data.json";
 
@@ -99,10 +102,11 @@ function num(sheet, n, label, s, { min, max, int } = {}) {
 const settingsRaw = Object.fromEntries(rows("1 Settings", 2).map((r) => [r.c[0], r]));
 const setting = (name, fallback) => (settingsRaw[name] ? settingsRaw[name].c[1] : fallback);
 const defaultScore =
-  num("1 Settings", settingsRaw["Default score when nothing received"]?.n, "Default score", setting("Default score when nothing received", "6"), { min: 1, max: 10 }) ?? 6;
+  num("1 Settings", settingsRaw["Default score when nothing received"]?.n, "Default score", setting("Default score when nothing received", "0"), { min: 0, max: MAX_SCORE }) ?? 0;
 const provisionalBelow =
   num("1 Settings", settingsRaw["Provisional if evidence below (%)"]?.n, "Provisional threshold", setting("Provisional if evidence below (%)", "50"), { min: 0, max: 100 }) ?? 50;
 const settings = {
+  maxScore: MAX_SCORE,
   defaultScore,
   provisionalBelow,
   scoreNotice: setting("Score notice", ""),
@@ -120,12 +124,11 @@ const estateSettings = {
 };
 
 // ---------------------------------------------------------------- 2 Areas
-const areas = rows("2 Areas", 5).map((r) => ({
+const areas = rows("2 Areas", 4).map((r) => ({
   id: r.c[0],
   name: r.c[1],
   weight: (num("2 Areas", r.n, "Weight", r.c[2], { min: 0, max: 100 }) ?? 0) / 100,
   scope: r.c[3],
-  sections: r.c[4],
 }));
 {
   const total = Math.round(areas.reduce((s, a) => s + a.weight, 0) * 1000) / 10;
@@ -135,18 +138,35 @@ const areaIds = new Set(areas.map((a) => a.id));
 areas.forEach((a) => !a.id && err("2 Areas", 0, "An area has no Area ID."));
 
 // ---------------------------------------------------------------- 3 Criteria
-const criteria = rows("3 Criteria", 6).map((r) => {
-  if (!areaIds.has(r.c[1])) err("3 Criteria", r.n, `Area ID "${r.c[1]}" does not exist on tab "2 Areas".`);
-  return {
-    id: r.c[0],
-    area: r.c[1],
-    label: r.c[2],
-    asks: r.c[3],
-    refs: r.c[4],
-    weight: num("3 Criteria", r.n, "Weight", r.c[5], { min: 1, max: 3 }) ?? 1,
-  };
-});
+// Columns: ID, Area ID, Criterion, Sub-Criterion, Question, Weight.
+// A row with an empty Criterion ID and a Sub-Criterion belongs to the criterion above it.
+// If the criterion's own row also names a sub-criterion, that is its first one.
+const areaByLower = Object.fromEntries(areas.map((a) => [a.id.toLowerCase(), a.id]));
+const criteria = [];
+for (const r of rows("3 Criteria", 6)) {
+  const [id, areaRaw, label, sub, asks, weight] = r.c;
+  if (id) {
+    const area = areaByLower[areaRaw.toLowerCase()];
+    if (!area) err("3 Criteria", r.n, `Area ID "${areaRaw}" does not exist on tab "2 Areas".`);
+    criteria.push({
+      id,
+      area: area ?? areaRaw,
+      label,
+      asks: sub ? "" : asks,
+      weight: num("3 Criteria", r.n, "Weight", weight, { min: 1, max: 5 }) ?? 1,
+      subs: sub ? [{ label: sub, asks }] : [],
+    });
+  } else if (sub && criteria.length) {
+    criteria[criteria.length - 1].subs.push({ label: sub, asks });
+  } else {
+    warn("3 Criteria", r.n, "This row has no Criterion ID and no Sub-Criterion, so it is ignored.");
+  }
+}
 const critIds = new Set(criteria.map((c) => c.id));
+criteria.forEach((c, i) => criteria.findIndex((x) => x.id === c.id) !== i && err("3 Criteria", 0, `Criterion ID "${c.id}" is used twice.`));
+for (const a of areas)
+  if (!criteria.some((c) => c.area === a.id))
+    warn("2 Areas", 0, `Area "${a.name}" has no criteria on tab "3 Criteria", so it is hidden and left out of the overall score.`);
 
 // ---------------------------------------------------------------- 10 Sources
 const sources = rows("10 Sources", 7).map((r) => ({
@@ -235,15 +255,15 @@ for (const r of rows("5 Scores", 9)) {
   const dc = dcOf("5 Scores", r.n, r.c[0]);
   if (!dc) continue;
   const cid = r.c[1];
-  if (!critIds.has(cid)) { err("5 Scores", r.n, `Criterion ID "${cid}" is not on tab "3 Criteria".`); continue; }
+  if (!critIds.has(cid)) { warn("5 Scores", r.n, `Criterion ID "${cid}" is not on tab "3 Criteria", so this row is ignored.`); continue; }
   if (ratings[dc.slug]?.[cid]) { err("5 Scores", r.n, `${dc.name} / ${cid} appears twice.`); continue; }
   const basis = EVID[r.c[4].toLowerCase()];
   const unscored = r.c[3] === "" && r.c[4] === "";
   if (!basis && !unscored) err("5 Scores", r.n, `Evidence "${r.c[4]}" must be one of: ${Object.values(EVIDENCE_LABELS).join(", ")}.`);
-  let score = num("5 Scores", r.n, "Score", r.c[3], { min: 1, max: 10, int: true });
+  let score = num("5 Scores", r.n, "Score", r.c[3], { min: 1, max: MAX_SCORE, int: true });
   if (score === null) {
     if (unscored || basis === "not-received") score = defaultScore;
-    else if (basis) err("5 Scores", r.n, `${dc.name} / ${cid}: the Score is empty. Enter 1-10, or set Evidence to "Not received" to use the default (${defaultScore}).`);
+    else if (basis) err("5 Scores", r.n, `${dc.name} / ${cid}: the Score is empty. Enter 1-${MAX_SCORE}, or set Evidence to "Not received" to use the default (${defaultScore}).`);
   }
   const parts = list(r.c[7]);
   parts.forEach((p) => !dc.nodes.some((n) => n.id === p) && warn("5 Scores", r.n, `${dc.name} / ${cid}: part "${p}" does not exist for ${dc.name}.`));
@@ -260,7 +280,7 @@ for (const r of rows("5 Scores", 9)) {
 }
 for (const dc of dcs)
   for (const c of criteria)
-    if (!ratings[dc.slug]?.[c.id]) warn("5 Scores", 0, `${dc.name} has no row for ${c.id} (${c.label}). It will not count towards the score and its page will fail to show it. Add a row.`);
+    if (!ratings[dc.slug]?.[c.id]) warn("5 Scores", 0, `${dc.name} has no row for ${c.id} (${c.label}). It is shown as Not received with the default score until a row is added on tab "5 Scores".`);
 
 // ---------------------------------------------------------------- 11-13 Estate diagram
 const estate = { ...estateSettings, nodes: [], edges: [], details: {} };

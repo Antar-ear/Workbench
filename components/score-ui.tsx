@@ -1,8 +1,8 @@
-import { BANDS, bandOf } from "@/lib/scoring";
+import { BANDS, MAX_SCORE, bandOf } from "@/lib/scoring";
 import { EVIDENCE_META, type Evidence } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Round gauge for a 1 to 10 score. The band name is always printed, never colour alone. */
+/** Round gauge for a 1 to MAX_SCORE score. The band name is always printed, never colour alone. */
 export function ScoreRing({
   score,
   size = 168,
@@ -16,13 +16,13 @@ export function ScoreRing({
   const stroke = Math.max(8, Math.round(size / 14));
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
-  const pct = Math.min(Math.max(score, 0), 10) / 10;
+  const pct = Math.min(Math.max(score, 0), MAX_SCORE) / MAX_SCORE;
   return (
     <div
       className="relative shrink-0"
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`Risk score ${score.toFixed(1)} out of 10, ${band.label}`}
+      aria-label={`Risk score ${score.toFixed(1)} out of ${MAX_SCORE}, ${band.label}`}
     >
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
@@ -42,7 +42,7 @@ export function ScoreRing({
           {score.toFixed(1)}
         </span>
         <span className="mt-1 text-slate-500" style={{ fontSize: Math.max(10, size * 0.075) }}>
-          out of 10
+          out of {MAX_SCORE}
         </span>
         {label && (
           <span className={cn("mt-2 font-semibold", band.text)} style={{ fontSize: Math.max(11, size * 0.09) }}>
@@ -70,12 +70,12 @@ export function ScoreChip({ score, className }: { score: number; className?: str
   );
 }
 
-/** 10-segment bar. */
+/** MAX_SCORE-segment bar. */
 export function ScoreBar({ score }: { score: number }) {
   const band = BANDS[bandOf(score)];
   return (
     <div className="flex h-2 w-full gap-0.5" aria-hidden>
-      {Array.from({ length: 10 }, (_, i) => (
+      {Array.from({ length: MAX_SCORE }, (_, i) => (
         <span
           key={i}
           className={cn("h-full flex-1 rounded-sm", i < Math.round(score) ? band.fill : "bg-slate-200")}

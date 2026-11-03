@@ -5,6 +5,7 @@ import { DCS } from "@/lib/dc";
 import {
   AREAS,
   BANDS,
+  MAX_SCORE,
   UNVERIFIED_DEFAULT,
   areaScore,
   CRITERIA,
@@ -24,8 +25,8 @@ export default function MatrixPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Scoring matrix</h1>
         <p className="max-w-3xl text-muted-foreground">
-          Every DC is scored from 1 to 10 on {CRITERIA.length} criteria across {AREAS.length} areas. 10 is the most
-          risk. Each criterion maps to items in the Pre-Kickoff Questionnaire.
+          Every DC is scored from 1 to {MAX_SCORE} on {CRITERIA.length} criteria across {AREAS.length} areas. {MAX_SCORE} is the most
+          risk.
         </p>
         {SETTINGS.scoreNotice && (
           <p className="max-w-3xl rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">
@@ -41,7 +42,7 @@ export default function MatrixPage() {
           <thead>
             <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3 font-semibold">Criterion</th>
-              <th className="px-2 py-3 font-semibold">Questions</th>
+              <th className="px-2 py-3 font-semibold">Question it answers</th>
               <th className="px-2 py-3 text-center font-semibold">Weight</th>
               {DCS.map((d) => (
                 <th key={d.slug} className="px-2 py-3 text-center font-semibold">
@@ -85,10 +86,10 @@ export default function MatrixPage() {
         <div className="space-y-3 rounded-xl border bg-white p-6">
           <h2 className="text-lg font-semibold">How a score is built</h2>
           <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
-            <li>Each criterion gets a score from 1 to 10 for each DC, with the reason and the evidence behind it.</li>
-            <li>Criteria carry a weight of 1 to 3 inside their area. An area score is the weighted mean of its criteria.</li>
+            <li>Each criterion gets a score from 1 to {MAX_SCORE} for each DC, with the reason and the evidence behind it.</li>
+            <li>Criteria carry a weight of 1 to 5 inside their area. An area score is the weighted mean of its criteria.</li>
             <li>
-              The overall score is the weighted mean of the four areas:{" "}
+              The overall score is the weighted mean of the areas:{" "}
               {AREAS.map((a) => `${a.name} ${Math.round(a.weight * 100)}%`).join(", ")}.
             </li>
             <li>Scores are shown to one decimal place. Criterion scores are whole numbers.</li>
@@ -166,19 +167,15 @@ function AreaRows({ areaId }: { areaId: (typeof AREAS)[number]["id"] }) {
             <span className="mr-2 text-xs text-slate-400">{c.id}</span>
             {c.label}
           </td>
-          <td className="px-2 py-2 text-xs text-slate-500">{c.refs}</td>
+          <td className="px-2 py-2 text-xs text-slate-500">{c.asks}</td>
           <td className="px-2 py-2 text-center text-xs text-slate-500">{c.weight}</td>
           {DCS.map((d) => {
             const r = ratingFor(d.slug, c.id);
             return (
               <td key={d.slug} className="px-2 py-2 text-center">
-                {r ? (
-                  <Link href={`/dc/${d.slug}/breakup/${area.id}`}>
-                    <ScoreCell score={r.score} basis={r.basis} />
-                  </Link>
-                ) : (
-                  "-"
-                )}
+                <Link href={`/dc/${d.slug}/breakup/${area.id}`}>
+                  <ScoreCell score={r.score} basis={r.basis} />
+                </Link>
               </td>
             );
           })}

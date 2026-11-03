@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScoreChip, ScoreRing } from "@/components/score-ui";
 import { DCS } from "@/lib/dc";
 import { SETTINGS } from "@/lib/settings";
-import { AREAS, CRITERIA, areaScore, evidenceCoverage, overallScore } from "@/lib/scoring";
+import { AREAS, CRITERIA, MAX_SCORE, areaScore, evidenceCoverage, overallScore } from "@/lib/scoring";
 
 export default function HomePage() {
   return (
@@ -16,9 +16,9 @@ export default function HomePage() {
         </Badge>
         <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">DC Risk Workbench</h1>
         <p className="max-w-3xl text-muted-foreground">
-          Choose a distribution center to see its risk score, from 1 to 10 where 10 is most risk.
-          From there you can open its architecture, or break the score into WMS, Infrastructure,
-          Enterprise and Cybersecurity. {SETTINGS.overviewNote}
+          Choose a distribution center to see its risk score, from 1 to {MAX_SCORE} where {MAX_SCORE} is most risk.
+          From there you can open its architecture, or break the score into{" "}
+          {AREAS.map((a) => a.name).join(", ")}. {SETTINGS.overviewNote}
         </p>
       </section>
 

@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Cog, Server, Shield, Waypoints, type LucideIcon } from "lucide-react";
+import { ArrowRight, Cog, LayoutGrid, Server, Shield, type LucideIcon } from "lucide-react";
 
 import { DcSwitcher, ViewSwitch } from "@/components/dc-nav";
 import { EvidenceChip, ScoreBar, ScoreChip } from "@/components/score-ui";
 import { DCS, getDc } from "@/lib/dc";
-import { AREAS, areaScore, evidenceCoverage, topDrivers, type AreaId } from "@/lib/scoring";
+import { AREAS, MAX_SCORE, areaScore, evidenceCoverage, topDrivers, type AreaId } from "@/lib/scoring";
 
 const ICONS: Record<AreaId, LucideIcon> = {
   wms: Cog,
   infra: Server,
-  enterprise: Waypoints,
   cyber: Shield,
 };
 
@@ -32,13 +31,13 @@ export default function BreakupPage({ params }: { params: { slug: string } }) {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">{dc.name} breakup</h1>
         <p className="text-muted-foreground">
-          Four areas, each scored 1 to 10. Open one to see the criteria behind its score.
+          {AREAS.length} areas, each scored 1 to {MAX_SCORE}. Open one to see the criteria behind its score.
         </p>
       </header>
 
       <div className="grid gap-4 md:grid-cols-2">
         {AREAS.map((a) => {
-          const Icon = ICONS[a.id];
+          const Icon = ICONS[a.id] ?? LayoutGrid;
           const score = areaScore(dc.slug, a.id);
           const cov = Math.round(evidenceCoverage(dc.slug, a.id) * 100);
           const drivers = topDrivers(dc.slug, a.id, 2);

@@ -166,8 +166,15 @@ function AreaRows({ areaId }: { areaId: (typeof AREAS)[number]["id"] }) {
           <td className="px-4 py-2 text-slate-800">
             <span className="mr-2 text-xs text-slate-400">{c.id}</span>
             {c.label}
+            {c.subs.length > 0 && (
+              <ul className="mt-1 list-disc space-y-0.5 pl-9 text-xs text-slate-500">
+                {c.subs.map((s, i) => (
+                  <li key={i}>{s.label}</li>
+                ))}
+              </ul>
+            )}
           </td>
-          <td className="px-2 py-2 text-xs text-slate-500">{c.asks}</td>
+          <td className="px-2 py-2 text-xs text-slate-500">{c.asks || "-"}</td>
           <td className="px-2 py-2 text-center text-xs text-slate-500">{c.weight}</td>
           {DCS.map((d) => {
             const r = ratingFor(d.slug, c.id);

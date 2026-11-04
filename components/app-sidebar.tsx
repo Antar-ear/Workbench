@@ -7,7 +7,6 @@ import { Home, FileStack, Grid3x3, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DCS } from "@/lib/dc";
 import { overallScore } from "@/lib/scoring";
-import { SETTINGS } from "@/lib/settings";
 
 interface NavItem {
   label: string;
@@ -82,10 +81,6 @@ export function AppSidebar() {
 
         <div className="pt-5">{BOTTOM.map(link)}</div>
       </nav>
-
-      <div className="border-t border-slate-800 px-6 py-4 text-xs text-slate-500">
-        {SETTINGS.sidebarFooter}
-      </div>
     </aside>
   );
 }

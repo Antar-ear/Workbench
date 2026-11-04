@@ -138,28 +138,44 @@ const areaIds = new Set(areas.map((a) => a.id));
 areas.forEach((a) => !a.id && err("2 Areas", 0, "An area has no Area ID."));
 
 // ---------------------------------------------------------------- 3 Criteria
-// Columns: ID, Area ID, Criterion, Sub-Criterion, Question, (last column is not read: scores live on tab 5).
-// A row with an empty Criterion ID and a Sub-Criterion belongs to the criterion above it.
-// If the criterion's own row also names a sub-criterion, that is its first one.
-const areaByLower = Object.fromEntries(areas.map((a) => [a.id.toLowerCase(), a.id]));
+// ONE ROW PER SCOREABLE ITEM. Columns: A Criterion ID, B Area ID, C Criterion, D Sub-Criterion,
+// E Question, F Score (1-5), G (automatic average, not read).
+// Every row repeats its Criterion ID. A row with a Sub-Criterion is one sub-category of that criterion;
+// a row with no Sub-Criterion is the criterion's own row. Rows are matched by ID, so they can be in any order.
+// The Score here is the starting score for every DC; a scored row on tab 5 overrides it for one DC.
+// (Old layout still works: a row with an empty ID belongs to the criterion above it.)
+const areaByLower = Object.fromEntries(
+  areas.flatMap((a) => [[a.id.toLowerCase(), a.id], [a.name.toLowerCase(), a.id]])
+);
 const criteria = [];
-for (const r of rows("3 Criteria", 5)) {
-  const [id, areaRaw, label, sub, asks] = r.c;
-  if (id) {
-    const area = areaByLower[areaRaw.toLowerCase()];
-    if (!area) err("3 Criteria", r.n, `Area ID "${areaRaw}" does not exist on tab "2 Areas".`);
-    criteria.push({
-      id,
-      area: area ?? areaRaw,
-      label,
-      asks: sub ? "" : asks,
-      subs: sub ? [{ label: sub, asks }] : [],
-    });
-  } else if (sub && criteria.length) {
-    criteria[criteria.length - 1].subs.push({ label: sub, asks });
-  } else {
-    warn("3 Criteria", r.n, "This row has no Criterion ID and no Sub-Criterion, so it is ignored.");
+const baseline = {}; // sheet score per criterion id ("W3") or sub id ("W3.1")
+for (const r of rows("3 Criteria", 6)) {
+  const [idRaw, areaRaw, label, sub, asks, scoreRaw] = r.c;
+  let c = idRaw ? criteria.find((x) => x.id === idRaw) : criteria[criteria.length - 1];
+  if (!idRaw && !c) { warn("3 Criteria", r.n, "This row has no Criterion ID, so it is ignored."); continue; }
+  if (!c) {
+    c = { id: idRaw, area: "", label: "", asks: "", subs: [] };
+    criteria.push(c);
   }
+  if (areaRaw) {
+    const area = areaByLower[areaRaw.toLowerCase()];
+    if (!area) err("3 Criteria", r.n, `Area ID "${areaRaw}" does not exist on tab "2 Areas". Use one of: ${areas.map((a) => a.id).join(", ")}.`);
+    else if (c.area && c.area !== area) err("3 Criteria", r.n, `Criterion ${c.id} is in area "${c.area}" on an earlier row but "${area}" here.`);
+    else c.area = area;
+  }
+  if (label && !c.label) c.label = label;
+  const score = num("3 Criteria", r.n, "Score", scoreRaw, { min: 1, max: MAX_SCORE, int: true });
+  if (sub) {
+    c.subs.push({ label: sub, asks });
+    if (score !== null) baseline[`${c.id}.${c.subs.length}`] = score;
+  } else {
+    if (asks && !c.asks) c.asks = asks;
+    if (score !== null) baseline[c.id] = score;
+  }
+}
+for (const c of criteria) {
+  if (!c.area) err("3 Criteria", 0, `Criterion ${c.id} has no Area ID on any of its rows.`);
+  if (!c.label) warn("3 Criteria", 0, `Criterion ${c.id} has no name in the Criterion column.`);
 }
 const critIds = new Set(criteria.map((c) => c.id));
 // A sub-category is scored on tab 5 with the ID of its criterion plus its position: W3.1, W3.2 ...
@@ -280,6 +296,23 @@ for (const r of rows("5 Scores", 9)) {
     sources: srcs,
   };
 }
+// Scores typed on tab 3 apply to every DC, unless that DC has a scored row on tab 5 for the same ID.
+let fromSheet = 0;
+for (const dc of dcs)
+  for (const [key, score] of Object.entries(baseline)) {
+    const own = ratings[dc.slug]?.[key];
+    if (own?.scored) continue;
+    (ratings[dc.slug] ??= {})[key] = {
+      score,
+      scored: true,
+      basis: own && own.basis !== "not-received" ? own.basis : "reported",
+      why: own?.why || "Score entered on the Criteria tab.",
+      next: own?.next ?? "",
+      nodes: own?.nodes ?? [],
+      sources: own?.sources ?? [],
+    };
+    fromSheet++;
+  }
 for (const dc of dcs)
   for (const c of criteria)
     if (!c.subs.length && !ratings[dc.slug]?.[c.id]) warn("5 Scores", 0, `${dc.name} has no row for ${c.id} (${c.label}). It is shown as Not received with the default score until a row is added on tab "5 Scores".`);
@@ -360,5 +393,5 @@ if (errors.length) {
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify({ settings, areas, criteria, dcs, ratings, sources, estate }, null, 2));
-console.log(`Data OK: ${dcs.length} DCs, ${criteria.length} criteria, ${Object.values(ratings).reduce((s, r) => s + Object.keys(r).length, 0)} scores, ${dcs.reduce((s, d) => s + d.nodes.length, 0)} parts, ${sources.length} sources, ${estate.nodes.length} estate boxes, ${estate.edges.length} arrows.`);
+console.log(`Data OK: ${dcs.length} DCs, ${criteria.length} criteria (${Object.keys(baseline).length} scored on the Criteria tab),${Object.values(ratings).reduce((s, r) => s + Object.keys(r).length, 0)} scores, ${dcs.reduce((s, d) => s + d.nodes.length, 0)} parts, ${sources.length} sources, ${estate.nodes.length} estate boxes, ${estate.edges.length} arrows.`);
 if (warnings.length) console.log(`\n${warnings.length} note(s) to look at (not blocking):\n${warnings.join("\n")}\n`);

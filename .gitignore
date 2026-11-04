@@ -31,3 +31,6 @@ next-env.d.ts
 
 # generated from data/Workbench-Data.xlsx (contains the workbook's content)
 /lib/generated/
+
+# graphify output
+graphify-out/

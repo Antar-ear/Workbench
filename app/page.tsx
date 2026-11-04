@@ -14,7 +14,7 @@ export default function HomePage() {
         <Badge variant="secondary" className="w-fit">
           SCM / WMS Modernization Readiness Assessment
         </Badge>
-        <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">DC Risk Workbench</h1>
+        <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">Alcon R&R Assessment </h1>
         <p className="max-w-3xl text-muted-foreground">
           Choose a distribution center to see its risk score, from 1 to {MAX_SCORE} where {MAX_SCORE} is most risk.
           From there you can open its architecture, or break the score into{" "}

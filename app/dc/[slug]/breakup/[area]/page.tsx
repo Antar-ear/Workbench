@@ -12,7 +12,9 @@ import {
   evidenceCoverage,
   getArea,
   ratingFor,
+  subRatingFor,
   UNVERIFIED_DEFAULT,
+  type Rating,
 } from "@/lib/scoring";
 import { getSource } from "@/lib/sources";
 
@@ -99,103 +101,58 @@ export default function AreaPage({ params }: { params: { slug: string; area: str
                     <p className="mt-1 text-slate-700">{c.asks || "-"}</p>
                   </div>
 
+                  {r.derivedFrom !== undefined && (
+                    <p className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-900">
+                      This score is the average of {r.derivedFrom} scored sub-categor{r.derivedFrom === 1 ? "y" : "ies"}.
+                    </p>
+                  )}
+
                   {c.subs.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         Sub-categories ({c.subs.length})
                       </p>
                       <ul className="mt-2 space-y-2">
-                        {c.subs.map((s, i) => (
-                          <li key={`${c.id}-${i}`}>
-                            <details className="group/sub rounded-md border bg-slate-50">
-                              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
-                                <span className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold text-slate-400">
-                                    {c.id}.{i + 1}
+                        {c.subs.map((s, i) => {
+                          const sr = subRatingFor(dc.slug, c.id, i);
+                          return (
+                            <li key={`${c.id}-${i}`}>
+                              <details className="group/sub rounded-md border bg-slate-50">
+                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
+                                  <span className="flex min-w-0 flex-wrap items-center gap-2">
+                                    <span className="text-xs font-semibold text-slate-400">
+                                      {c.id}.{i + 1}
+                                    </span>
+                                    <span className="font-medium text-slate-900">{s.label}</span>
+                                    <EvidenceChip basis={sr.basis} />
                                   </span>
-                                  <span className="font-medium text-slate-900">{s.label}</span>
-                                </span>
-                                <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open/sub:rotate-180" />
-                              </summary>
-                              <div className="space-y-3 border-t bg-white px-3 py-3">
-                                <div>
-                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Question this answers
-                                  </p>
-                                  <p className="mt-1 text-slate-700">{s.asks || "-"}</p>
+                                  <span className="flex shrink-0 items-center gap-3">
+                                    {sr.scored ? (
+                                      <ScoreChip score={sr.score} />
+                                    ) : (
+                                      <span className="text-xs text-slate-400">Not scored</span>
+                                    )}
+                                    <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open/sub:rotate-180" />
+                                  </span>
+                                </summary>
+                                <div className="space-y-4 border-t bg-white px-3 py-3">
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Question this answers
+                                    </p>
+                                    <p className="mt-1 text-slate-700">{s.asks || "-"}</p>
+                                  </div>
+                                  <RatingBody r={sr} dc={dc} nodeLabel={nodeLabel} />
                                 </div>
-                                {!s.asks && (
-                                  <p className="text-xs text-slate-500">
-                                    Nothing entered yet for this sub-category.
-                                  </p>
-                                )}
-                              </div>
-                            </details>
-                          </li>
-                        ))}
+                              </details>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
 
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Why this score
-                    </p>
-                    <p className="mt-1 leading-relaxed text-slate-700">{r.why || "-"}</p>
-                    {r.basis === "not-received" && (
-                      <p className="mt-2 rounded bg-rose-50 px-2 py-1 text-xs text-rose-800">
-                        We hold nothing on this, so it carries the default of {UNVERIFIED_DEFAULT}.
-                        It is a flag, not a finding.
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Needed to firm it up
-                    </p>
-                    <p className="mt-1 leading-relaxed text-slate-700">{r.next || "-"}</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-x-8 gap-y-3">
-                    {r.nodes.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Parts of the architecture
-                        </p>
-                        <ul className="mt-1 flex flex-wrap gap-1.5">
-                          {r.nodes.map((id) => (
-                            <li key={id}>
-                              <Link
-                                href={`/dc/${dc.slug}/architecture`}
-                                className="rounded border bg-slate-50 px-2 py-0.5 text-xs text-slate-700 hover:border-blue-500"
-                              >
-                                {nodeLabel(id)}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Sources
-                      </p>
-                      <ul className="mt-1 flex flex-wrap gap-1.5">
-                        {r.sources.map((id) => (
-                          <li key={id}>
-                            <Link
-                              href={`/sources#${id}`}
-                              title={getSource(id)?.title ?? id}
-                              className="block max-w-[15rem] truncate rounded border bg-slate-50 px-2 py-0.5 text-xs text-slate-700 hover:border-blue-500"
-                            >
-                              {getSource(id)?.title ?? id}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
+                  <RatingBody r={r} dc={dc} nodeLabel={nodeLabel} />
                 </div>
               </details>
             </li>
@@ -203,5 +160,79 @@ export default function AreaPage({ params }: { params: { slug: string; area: str
         </ul>
       </section>
     </div>
+  );
+}
+
+function RatingBody({
+  r,
+  dc,
+  nodeLabel,
+}: {
+  r: Rating;
+  dc: { slug: string };
+  nodeLabel: (id: string) => string;
+}) {
+  return (
+    <>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Why this score
+        </p>
+        <p className="mt-1 leading-relaxed text-slate-700">{r.why || "-"}</p>
+        {r.basis === "not-received" && (
+          <p className="mt-2 rounded bg-rose-50 px-2 py-1 text-xs text-rose-800">
+            We hold nothing on this, so it carries the default of {UNVERIFIED_DEFAULT}.
+            It is a flag, not a finding.
+          </p>
+        )}
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Needed to firm it up
+        </p>
+        <p className="mt-1 leading-relaxed text-slate-700">{r.next || "-"}</p>
+      </div>
+
+      <div className="flex flex-wrap gap-x-8 gap-y-3">
+        {r.nodes.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Parts of the architecture
+            </p>
+            <ul className="mt-1 flex flex-wrap gap-1.5">
+              {r.nodes.map((id) => (
+                <li key={id}>
+                  <Link
+                    href={`/dc/${dc.slug}/architecture`}
+                    className="rounded border bg-slate-50 px-2 py-0.5 text-xs text-slate-700 hover:border-blue-500"
+                  >
+                    {nodeLabel(id)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Sources
+          </p>
+          <ul className="mt-1 flex flex-wrap gap-1.5">
+            {r.sources.map((id) => (
+              <li key={id}>
+                <Link
+                  href={`/sources#${id}`}
+                  title={getSource(id)?.title ?? id}
+                  className="block max-w-[15rem] truncate rounded border bg-slate-50 px-2 py-0.5 text-xs text-slate-700 hover:border-blue-500"
+                >
+                  {getSource(id)?.title ?? id}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </>
   );
 }

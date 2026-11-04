@@ -5,8 +5,8 @@ import data from "./generated/workbench-data.json";
  * Risk scoring matrix.
  *
  * Every distribution center is scored 1 to 5 (5 = most risk) on a set of criteria
- * grouped into areas. Area score = weighted mean of its criteria. Overall score =
- * weighted mean of the areas.
+ * grouped into areas. A criterion with scored sub-categories takes their average.
+ * Area score = plain mean of its criteria. Overall score = weighted mean of the areas.
  *
  * NOTHING IS TYPED IN THIS FILE. The areas, criteria, weights and every rating come
  * from data/Workbench-Data.xlsx (see README), via lib/generated/workbench-data.json.
@@ -32,12 +32,14 @@ export interface CriterionDef {
   asks: string;
   /** Sub-categories shown under the criterion (WMS only, for now). */
   subs: { label: string; asks: string }[];
-  /** Weight inside its area (1 to 5). */
-  weight: number;
 }
 
 export interface Rating {
   score: number;
+  /** True when a score was typed for it (not just the default for "nothing received"). */
+  scored?: boolean;
+  /** Set when the score is the average of this many scored sub-categories. */
+  derivedFrom?: number;
   /** How well what we hold backs the score. Reuses the evidence levels of the diagrams. */
   basis: Evidence;
   /** Why this score, in one or two sentences. */
@@ -85,6 +87,8 @@ export const RATINGS = data.ratings as unknown as Record<string, Record<string, 
 
 // ---------------------------------------------------------------- maths
 
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
 const EVIDENCE_SHARE: Record<Evidence, number> = {
   documented: 1,
   reported: 1,
@@ -94,21 +98,31 @@ const EVIDENCE_SHARE: Record<Evidence, number> = {
 
 export const criteriaFor = (area: AreaId) => CRITERIA.filter((c) => c.area === area);
 export const getArea = (id: string) => AREAS.find((a) => a.id === id);
-const NOT_RECEIVED: Rating = { score: UNVERIFIED_DEFAULT, basis: "not-received", why: "", next: "", nodes: [], sources: [] };
-/** A criterion with no row on the Scores tab counts as Not received, with the default score. */
-export const ratingFor = (slug: string, criterionId: string): Rating => RATINGS[slug]?.[criterionId] ?? NOT_RECEIVED;
+const NOT_RECEIVED: Rating = { score: UNVERIFIED_DEFAULT, scored: false, basis: "not-received", why: "", next: "", nodes: [], sources: [] };
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
+/** Rating of one sub-category (Scores tab row "W3.1" = first sub-category of W3). */
+export const subRatingFor = (slug: string, criterionId: string, index: number): Rating =>
+  RATINGS[slug]?.[`${criterionId}.${index + 1}`] ?? NOT_RECEIVED;
+
+/**
+ * Rating of a criterion. If any of its sub-categories is scored, the score is the average of
+ * the scored ones (so it fills in by itself). Otherwise its own row on the Scores tab is used;
+ * a criterion with no row counts as Not received, with the default score.
+ */
+export function ratingFor(slug: string, criterionId: string): Rating {
+  const own = RATINGS[slug]?.[criterionId] ?? NOT_RECEIVED;
+  const c = CRITERIA.find((x) => x.id === criterionId);
+  const scored = (c?.subs ?? []).map((_, i) => subRatingFor(slug, criterionId, i)).filter((r) => r.scored);
+  if (!scored.length) return own;
+  const mean = scored.reduce((s, r) => s + r.score, 0) / scored.length;
+  const basis = scored.every((r) => r.basis === scored[0].basis) ? scored[0].basis : "partial";
+  return { ...own, score: round1(mean), scored: true, derivedFrom: scored.length, basis };
+}
 
 export function areaScore(slug: string, area: AreaId): number {
-  let sum = 0;
-  let w = 0;
-  for (const c of criteriaFor(area)) {
-    const r = ratingFor(slug, c.id);
-    sum += r.score * c.weight;
-    w += c.weight;
-  }
-  return w ? round1(sum / w) : 0;
+  const list = criteriaFor(area);
+  if (!list.length) return 0;
+  return round1(list.reduce((s, c) => s + ratingFor(slug, c.id).score, 0) / list.length);
 }
 
 export function overallScore(slug: string): number {
@@ -127,16 +141,16 @@ export function evidenceCoverage(slug: string, area?: AreaId): number {
   let w = 0;
   for (const c of area ? criteriaFor(area) : CRITERIA) {
     const r = ratingFor(slug, c.id);
-    got += EVIDENCE_SHARE[r.basis] * c.weight;
-    w += c.weight;
+    got += EVIDENCE_SHARE[r.basis];
+    w += 1;
   }
   return w ? got / w : 0;
 }
 
-/** Criteria in an area ordered by their pull on the score (weight x score). */
+/** Criteria in an area ordered by their pull on the score (score). */
 export function topDrivers(slug: string, area: AreaId, n = 2) {
   return criteriaFor(area)
     .map((c) => ({ c, r: ratingFor(slug, c.id) }))
-    .sort((a, b) => b.r.score * b.c.weight - a.r.score * a.c.weight)
+    .sort((a, b) => b.r.score - a.r.score)
     .slice(0, n);
 }

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 
 import { ScoreCell } from "@/components/score-ui";
@@ -13,6 +14,7 @@ import {
   evidenceCoverage,
   overallScore,
   ratingFor,
+  subRatingFor,
 } from "@/lib/scoring";
 import { SETTINGS } from "@/lib/settings";
 import { EVIDENCE_META } from "@/lib/types";
@@ -43,7 +45,6 @@ export default function MatrixPage() {
             <tr className="border-b bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3 font-semibold">Criterion</th>
               <th className="px-2 py-3 font-semibold">Question it answers</th>
-              <th className="px-2 py-3 text-center font-semibold">Weight</th>
               {DCS.map((d) => (
                 <th key={d.slug} className="px-2 py-3 text-center font-semibold">
                   <Link href={`/dc/${d.slug}`} className="hover:text-blue-700 hover:underline">
@@ -58,7 +59,7 @@ export default function MatrixPage() {
               <AreaRows key={a.id} areaId={a.id} />
             ))}
             <tr className="border-t-2 border-slate-300 bg-slate-100">
-              <td className="px-4 py-3 font-bold" colSpan={3}>
+              <td className="px-4 py-3 font-bold" colSpan={2}>
                 Overall risk score
               </td>
               {DCS.map((d) => (
@@ -68,7 +69,7 @@ export default function MatrixPage() {
               ))}
             </tr>
             <tr className="bg-white">
-              <td className="px-4 py-2 text-xs text-slate-500" colSpan={3}>
+              <td className="px-4 py-2 text-xs text-slate-500" colSpan={2}>
                 Evidence behind the score
               </td>
               {DCS.map((d) => (
@@ -87,7 +88,7 @@ export default function MatrixPage() {
           <h2 className="text-lg font-semibold">How a score is built</h2>
           <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
             <li>Each criterion gets a score from 1 to {MAX_SCORE} for each DC, with the reason and the evidence behind it.</li>
-            <li>Criteria carry a weight of 1 to 5 inside their area. An area score is the weighted mean of its criteria.</li>
+            <li>A criterion with scored sub-categories takes the average of their scores. An area score is the plain average of its criteria.</li>
             <li>
               The overall score is the weighted mean of the areas:{" "}
               {AREAS.map((a) => `${a.name} ${Math.round(a.weight * 100)}%`).join(", ")}.
@@ -95,7 +96,7 @@ export default function MatrixPage() {
             <li>Scores are shown to one decimal place. Criterion scores are whole numbers.</li>
           </ol>
           <p className="text-xs text-slate-500">
-            The weights and the default of {UNVERIFIED_DEFAULT} are judgment calls by the assessor.
+            The area weights and the default of {UNVERIFIED_DEFAULT} are judgment calls by the assessor.
             They are set in the Excel data file and can be changed there.
           </p>
         </div>
@@ -125,7 +126,7 @@ export default function MatrixPage() {
           </ul>
           <p className="text-xs text-slate-500">
             Evidence behind a score counts Documented and Reported as full, Partial as half and Not
-            received as zero, weighted by criterion.
+            received as zero.
           </p>
         </div>
       </section>
@@ -152,7 +153,7 @@ function AreaRows({ areaId }: { areaId: (typeof AREAS)[number]["id"] }) {
   return (
     <>
       <tr className="border-t bg-slate-50/70">
-        <td className="px-4 py-2 text-sm font-semibold text-slate-800" colSpan={3}>
+        <td className="px-4 py-2 text-sm font-semibold text-slate-800" colSpan={2}>
           {area.name}
         </td>
         {DCS.map((d) => (
@@ -162,31 +163,42 @@ function AreaRows({ areaId }: { areaId: (typeof AREAS)[number]["id"] }) {
         ))}
       </tr>
       {criteriaFor(area.id).map((c) => (
-        <tr key={c.id} className="border-t">
-          <td className="px-4 py-2 text-slate-800">
-            <span className="mr-2 text-xs text-slate-400">{c.id}</span>
-            {c.label}
-            {c.subs.length > 0 && (
-              <ul className="mt-1 list-disc space-y-0.5 pl-9 text-xs text-slate-500">
-                {c.subs.map((s, i) => (
-                  <li key={i}>{s.label}</li>
-                ))}
-              </ul>
-            )}
-          </td>
-          <td className="px-2 py-2 text-xs text-slate-500">{c.asks || "-"}</td>
-          <td className="px-2 py-2 text-center text-xs text-slate-500">{c.weight}</td>
-          {DCS.map((d) => {
-            const r = ratingFor(d.slug, c.id);
-            return (
-              <td key={d.slug} className="px-2 py-2 text-center">
-                <Link href={`/dc/${d.slug}/breakup/${area.id}`}>
-                  <ScoreCell score={r.score} basis={r.basis} />
-                </Link>
+        <Fragment key={c.id}>
+          <tr className="border-t">
+            <td className="px-4 py-2 text-slate-800">
+              <span className="mr-2 text-xs text-slate-400">{c.id}</span>
+              {c.label}
+            </td>
+            <td className="px-2 py-2 text-xs text-slate-500">{c.asks || "-"}</td>
+            {DCS.map((d) => {
+              const r = ratingFor(d.slug, c.id);
+              return (
+                <td key={d.slug} className="px-2 py-2 text-center">
+                  <Link href={`/dc/${d.slug}/breakup/${area.id}`}>
+                    <ScoreCell score={r.score} basis={r.basis} />
+                  </Link>
+                </td>
+              );
+            })}
+          </tr>
+          {c.subs.map((s, i) => (
+            <tr key={`${c.id}.${i + 1}`} className="bg-slate-50/40">
+              <td className="py-1.5 pl-12 pr-2 text-xs text-slate-600">
+                <span className="mr-2 text-slate-400">{c.id}.{i + 1}</span>
+                {s.label}
               </td>
-            );
-          })}
-        </tr>
+              <td className="px-2 py-1.5 text-xs text-slate-500">{s.asks || "-"}</td>
+              {DCS.map((d) => {
+                const r = subRatingFor(d.slug, c.id, i);
+                return (
+                  <td key={d.slug} className="px-2 py-1.5 text-center text-xs">
+                    {r.scored ? <ScoreCell score={r.score} basis={r.basis} /> : <span className="text-slate-400">-</span>}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </Fragment>
       ))}
     </>
   );

@@ -138,13 +138,13 @@ const areaIds = new Set(areas.map((a) => a.id));
 areas.forEach((a) => !a.id && err("2 Areas", 0, "An area has no Area ID."));
 
 // ---------------------------------------------------------------- 3 Criteria
-// Columns: ID, Area ID, Criterion, Sub-Criterion, Question, Weight.
+// Columns: ID, Area ID, Criterion, Sub-Criterion, Question, (last column is not read: scores live on tab 5).
 // A row with an empty Criterion ID and a Sub-Criterion belongs to the criterion above it.
 // If the criterion's own row also names a sub-criterion, that is its first one.
 const areaByLower = Object.fromEntries(areas.map((a) => [a.id.toLowerCase(), a.id]));
 const criteria = [];
-for (const r of rows("3 Criteria", 6)) {
-  const [id, areaRaw, label, sub, asks, weight] = r.c;
+for (const r of rows("3 Criteria", 5)) {
+  const [id, areaRaw, label, sub, asks] = r.c;
   if (id) {
     const area = areaByLower[areaRaw.toLowerCase()];
     if (!area) err("3 Criteria", r.n, `Area ID "${areaRaw}" does not exist on tab "2 Areas".`);
@@ -153,7 +153,6 @@ for (const r of rows("3 Criteria", 6)) {
       area: area ?? areaRaw,
       label,
       asks: sub ? "" : asks,
-      weight: num("3 Criteria", r.n, "Weight", weight, { min: 1, max: 5 }) ?? 1,
       subs: sub ? [{ label: sub, asks }] : [],
     });
   } else if (sub && criteria.length) {
@@ -163,6 +162,8 @@ for (const r of rows("3 Criteria", 6)) {
   }
 }
 const critIds = new Set(criteria.map((c) => c.id));
+// A sub-category is scored on tab 5 with the ID of its criterion plus its position: W3.1, W3.2 ...
+const subIds = new Set(criteria.flatMap((c) => c.subs.map((_, i) => `${c.id}.${i + 1}`)));
 criteria.forEach((c, i) => criteria.findIndex((x) => x.id === c.id) !== i && err("3 Criteria", 0, `Criterion ID "${c.id}" is used twice.`));
 for (const a of areas)
   if (!criteria.some((c) => c.area === a.id))
@@ -255,7 +256,7 @@ for (const r of rows("5 Scores", 9)) {
   const dc = dcOf("5 Scores", r.n, r.c[0]);
   if (!dc) continue;
   const cid = r.c[1];
-  if (!critIds.has(cid)) { warn("5 Scores", r.n, `Criterion ID "${cid}" is not on tab "3 Criteria", so this row is ignored.`); continue; }
+  if (!critIds.has(cid) && !subIds.has(cid)) { warn("5 Scores", r.n, `Criterion ID "${cid}" is not on tab "3 Criteria" (sub-categories are written like W3.1), so this row is ignored.`); continue; }
   if (ratings[dc.slug]?.[cid]) { err("5 Scores", r.n, `${dc.name} / ${cid} appears twice.`); continue; }
   const basis = EVID[r.c[4].toLowerCase()];
   const unscored = r.c[3] === "" && r.c[4] === "";
@@ -271,6 +272,7 @@ for (const r of rows("5 Scores", 9)) {
   srcs.forEach((s) => !sourceIds.has(s) && warn("5 Scores", r.n, `${dc.name} / ${cid}: source "${s}" is not on tab "10 Sources".`));
   (ratings[dc.slug] ??= {})[cid] = {
     score: score ?? defaultScore,
+    scored: r.c[3] !== "",
     basis: basis ?? "not-received",
     why: r.c[5],
     next: r.c[6],
@@ -280,7 +282,7 @@ for (const r of rows("5 Scores", 9)) {
 }
 for (const dc of dcs)
   for (const c of criteria)
-    if (!ratings[dc.slug]?.[c.id]) warn("5 Scores", 0, `${dc.name} has no row for ${c.id} (${c.label}). It is shown as Not received with the default score until a row is added on tab "5 Scores".`);
+    if (!c.subs.length && !ratings[dc.slug]?.[c.id]) warn("5 Scores", 0, `${dc.name} has no row for ${c.id} (${c.label}). It is shown as Not received with the default score until a row is added on tab "5 Scores".`);
 
 // ---------------------------------------------------------------- 11-13 Estate diagram
 const estate = { ...estateSettings, nodes: [], edges: [], details: {} };

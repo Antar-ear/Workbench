@@ -50,7 +50,7 @@ export function AppSidebar() {
         </div>
         <div className="leading-tight">
           <p className="text-sm font-semibold">Alcon SCM / WMS</p>
-          <p className="text-xs text-slate-400">DC Risk Workbench</p>
+          <p className="text-xs text-slate-400">R&R Assessment</p>
         </div>
       </div>
 

@@ -9,7 +9,6 @@ import { AREAS } from "@/lib/scoring";
 
 function labelFor(segment: string): string {
   if (segment === "dc") return "Distribution centers";
-  if (segment === "sources") return "Sources received";
   if (segment === "matrix") return "Scoring matrix";
   if (segment === "details") return "Details";
   if (segment === "architecture") return "Architecture";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, FileStack, Grid3x3 } from "lucide-react";
+import { ArrowRight, Grid3x3 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { ScoreChip, ScoreRing } from "@/components/score-ui";
@@ -72,17 +72,6 @@ export default function HomePage() {
           <span>
             <span className="font-medium">Scoring matrix.</span>{" "}
             <span className="text-muted-foreground">All {CRITERIA.length} criteria for all {DCS.length} DCs, and how the score is built.</span>
-          </span>
-          <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
-        </Link>
-        <Link
-          href="/sources"
-          className="flex items-center gap-3 rounded-lg border bg-white p-4 text-sm transition-colors hover:border-blue-500"
-        >
-          <FileStack className="h-5 w-5 text-blue-600" />
-          <span>
-            <span className="font-medium">Sources received.</span>{" "}
-            <span className="text-muted-foreground">Every document behind the scores and diagrams.</span>
           </span>
           <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>

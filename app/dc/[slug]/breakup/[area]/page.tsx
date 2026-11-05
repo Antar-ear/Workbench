@@ -221,13 +221,12 @@ function RatingBody({
           <ul className="mt-1 flex flex-wrap gap-1.5">
             {r.sources.map((id) => (
               <li key={id}>
-                <Link
-                  href={`/sources#${id}`}
+                <span
                   title={getSource(id)?.title ?? id}
-                  className="block max-w-[15rem] truncate rounded border bg-slate-50 px-2 py-0.5 text-xs text-slate-700 hover:border-blue-500"
+                  className="block max-w-[15rem] truncate rounded border bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
                 >
                   {getSource(id)?.title ?? id}
-                </Link>
+                </span>
               </li>
             ))}
           </ul>

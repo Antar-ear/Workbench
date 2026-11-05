@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, FileStack, Grid3x3, type LucideIcon } from "lucide-react";
+import { Home, Grid3x3, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { DCS } from "@/lib/dc";
@@ -17,7 +17,6 @@ interface NavItem {
 const TOP: NavItem[] = [{ label: "Overview", href: "/", icon: Home }];
 const BOTTOM: NavItem[] = [
   { label: "Scoring matrix", href: "/matrix", icon: Grid3x3 },
-  { label: "Sources received", href: "/sources", icon: FileStack },
 ];
 
 export function AppSidebar() {
